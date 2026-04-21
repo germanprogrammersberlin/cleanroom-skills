@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xml>
+<records>
+<record>
+<rec-number>1</rec-number>
+<ref-type name="Journal Article">17</ref-type>
+<contributors>
+<authors>
+<author>Kaiser, D.</author>
+<author>Meyerbroeker, N.</author>
+<author>Purschke, W.</author>
+</authors>
+</contributors>
+<titles>
+<title>Ultrasensitive Detection of Chemokines in Clinical Samples with Graphene-Based Field-Effect Transistors</title>
+<secondary-title>Advanced Materials</secondary-title>
+</titles>
+<dates>
+<year>2024</year>
+</dates>
+<volume>36</volume>
+<number>52</number>
+<pages>2407487</pages>
+<electronic-resource-num>10.1002/adma.202407487</electronic-resource-num>
+<abstract>Graphene field-effect transistors (GFETs) functionalized with carbon nanomembranes enable ultrasensitive detection of chemokines at attomolar concentrations. A two-step bind-and-read protocol with ionic strength modulation achieves signal amplification through charge unscreening.</abstract>
+<keywords>
+<keyword>graphene</keyword>
+<keyword>biosensor</keyword>
+<keyword>GFET</keyword>
+<keyword>chemokine</keyword>
+<keyword>carbon nanomembrane</keyword>
+</keywords>
+</record>
+<record>
+<rec-number>2</rec-number>
+<ref-type name="Journal Article">17</ref-type>
+<contributors>
+<authors>
+<author>Kaiser, D.</author>
+<author>Tang, Z.</author>
+<author>Kuellmer, M.</author>
+</authors>
+</contributors>
+<titles>
+<title>pH Sensors Based on Amino-Terminated Carbon Nanomembrane and Single-Layer Graphene Van der Waals Heterostructures</title>
+<secondary-title>Applied Physics Reviews</secondary-title>
+</titles>
+<dates>
+<year>2021</year>
+</dates>
+<volume>8</volume>
+<number>3</number>
+<pages>031410</pages>
+<electronic-resource-num>10.1063/5.0049183</electronic-resource-num>
+<abstract>We demonstrate pH sensing with graphene-CNM van der Waals heterostructures. The Gouy-Chapman-Stern model describes the electrical double layer at the graphene-electrolyte interface with a functional-layer capacitance accounting for the CNM.</abstract>
+<keywords>
+<keyword>pH sensor</keyword>
+<keyword>graphene</keyword>
+<keyword>carbon nanomembrane</keyword>
+<keyword>Gouy-Chapman-Stern</keyword>
+</keywords>
+</record>
+<record>
+<rec-number>3</rec-number>
+<ref-type name="Journal Article">17</ref-type>
+<contributors>
+<authors>
+<author>Stern, E.</author>
+<author>Wagner, R.</author>
+<author>Sigworth, F. J.</author>
+</authors>
+</contributors>
+<titles>
+<title>Importance of the Debye Screening Length on Nanowire Field Effect Transistor Sensors</title>
+<secondary-title>Nano Letters</secondary-title>
+</titles>
+<dates>
+<year>2007</year>
+</dates>
+<volume>7</volume>
+<number>11</number>
+<pages>3405-3409</pages>
+<electronic-resource-num>10.1021/nl071792z</electronic-resource-num>
+<abstract>We demonstrate that the Debye screening length is a critical parameter for nanowire FET biosensors. At physiological ionic strength the Debye length is approximately 0.8 nm, severely limiting the sensor response to charged biomolecules beyond this distance.</abstract>
+<keywords>
+<keyword>Debye length</keyword>
+<keyword>nanowire</keyword>
+<keyword>FET</keyword>
+<keyword>biosensor</keyword>
+<keyword>screening</keyword>
+</keywords>
+</record>
+<record>
+<rec-number>4</rec-number>
+<ref-type name="Journal Article">17</ref-type>
+<contributors>
+<authors>
+<author>Kesler, V.</author>
+<author>Murmann, B.</author>
+<author>Soh, H. T.</author>
+</authors>
+</contributors>
+<titles>
+<title>Going Beyond the Debye Length: Overcoming Charge Screening Limitations in Next-Generation Bioelectronic Sensors</title>
+<secondary-title>ACS Nano</secondary-title>
+</titles>
+<dates>
+<year>2020</year>
+</dates>
+<volume>14</volume>
+<number>12</number>
+<pages>16194-16201</pages>
+<electronic-resource-num>10.1021/acsnano.0c08622</electronic-resource-num>
+<abstract>We review strategies to overcome Debye screening in bioelectronic sensors, including desalting protocols, polymer modifications, and frequency-based methods. The two-step protocol achieves signal amplification by separating binding from readout conditions.</abstract>
+<keywords>
+<keyword>Debye screening</keyword>
+<keyword>biosensor</keyword>
+<keyword>charge screening</keyword>
+<keyword>signal amplification</keyword>
+</keywords>
+</record>
+<record>
+<rec-number>5</rec-number>
+<ref-type name="Journal Article">17</ref-type>
+<contributors>
+<authors>
+<author>Eshaghi, G.</author>
+<author>Kaiser, D.</author>
+<author>Rasouli, H. R.</author>
+</authors>
+</contributors>
+<titles>
+<title>Highly Sensitive and Label-Free Detection of SARS-CoV-2 Proteins via Surface Plasmon Resonance</title>
+<secondary-title>Scientific Reports</secondary-title>
+</titles>
+<dates>
+<year>2025</year>
+</dates>
+<volume>15</volume>
+<pages>31248</pages>
+<electronic-resource-num>10.1038/s41598-025-31248</electronic-resource-num>
+<abstract>We report SPR measurements of SARS-CoV-2 S-protein and N-protein binding to monoclonal antibodies. The dissociation constants are KD = 0.022 nM for S-protein and KD = 0.57 nM for N-protein.</abstract>
+<keywords>
+<keyword>SARS-CoV-2</keyword>
+<keyword>SPR</keyword>
+<keyword>surface plasmon resonance</keyword>
+<keyword>dissociation constant</keyword>
+</keywords>
+</record>
+</records>
+</xml>
