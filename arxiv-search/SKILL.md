@@ -20,16 +20,16 @@ The arXiv API is free, no authentication needed:
 
 ```bash
 # Search by keyword
-curl "http://export.arxiv.org/api/query?search_query=all:quantum+computing&max_results=10"
+curl "https://export.arxiv.org/api/query?search_query=all:quantum+computing&max_results=10"
 
 # Search by author
-curl "http://export.arxiv.org/api/query?search_query=au:Einstein&max_results=5"
+curl "https://export.arxiv.org/api/query?search_query=au:Einstein&max_results=5"
 
 # Search by category
-curl "http://export.arxiv.org/api/query?search_query=cat:cond-mat.mtrl-sci&max_results=10"
+curl "https://export.arxiv.org/api/query?search_query=cat:cond-mat.mtrl-sci&max_results=10"
 
 # Combined search
-curl "http://export.arxiv.org/api/query?search_query=ti:neural+AND+cat:cs.AI&sortBy=submittedDate&sortOrder=descending&max_results=20"
+curl "https://export.arxiv.org/api/query?search_query=ti:neural+AND+cat:cs.AI&sortBy=submittedDate&sortOrder=descending&max_results=20"
 ```
 
 ## Response Format
