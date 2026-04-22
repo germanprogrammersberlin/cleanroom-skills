@@ -1,6 +1,6 @@
 ---
 name: ovito-rendering
-description: Publication-quality crystal structure rendering with OVITO Python API. Ray-traced images with ambient occlusion, shadows, depth of field. Reads CIF files natively. Headless, no GPU needed. The standard for top-journal figures.
+description: Ray-traced crystal structure rendering with OVITO Python API. Ambient occlusion, shadows, transparent backgrounds. Headless, no GPU needed.
 ---
 
 # OVITO Rendering

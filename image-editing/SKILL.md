@@ -1,6 +1,6 @@
 ---
 name: image-editing
-description: Edit existing images using Pillow and ImageMagick. Crop, composite, replace regions, overlay renders onto originals, adjust colors, add transparency. Use when modifying an existing image rather than creating from scratch.
+description: Edit existing images using Pillow and ImageMagick. Crop, composite, replace regions, overlay renders onto originals.
 ---
 
 # Image Editing
