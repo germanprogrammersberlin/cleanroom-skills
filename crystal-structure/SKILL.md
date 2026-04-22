@@ -1,6 +1,6 @@
 ---
 name: crystal-structure
-description: Build and render publication-quality crystal structures using ASE and pymatgen. Create atomic models from CIF files, space groups, or manual coordinates. Render to PNG for papers and graphical abstracts.
+description: Build crystal structures from space groups, CIF files, or coordinates using ASE and pymatgen. For rendering, use the ovito-rendering skill (ray-traced, publication quality). This skill is for structure BUILDING, ovito-rendering is for RENDERING.
 ---
 
 # Crystal Structure Visualization
