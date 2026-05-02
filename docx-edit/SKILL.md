@@ -1,25 +1,39 @@
 ---
 name: docx-edit
-description: Edit the team's Word manuscript (.docx) in place with tracked changes. Use when modifying main_manuscript.docx or other shared Word documents. Pulls latest from cleanroom-drive, edits via docx-mcp with track-changes ON, pushes back. Treats DOCX as the canonical source of truth — never regenerates the manuscript from scratch. Citations go in as Word native fields referencing library.bib cite-keys.
+description: Propose edits to the team's Word manuscript by working on a clone in output/drafts/, NOT in place on manuscript/main_manuscript.docx. Pulls the latest manuscript, copies it into output/drafts/ with a versioned filename, edits the clone with tracked changes via docx-mcp, pushes the edited clone back to output/drafts/. The user reviews and decides whether to integrate the proposed changes into the canonical file themselves.
 ---
 
-# Editing the Team's Word Manuscript
+# Proposing Edits to the Team's Word Manuscript
 
 ## ⚡ The one rule
 
-**COPY the existing `.docx` to local, EDIT it in place with tracked changes, PUSH the same file back. Do NOT regenerate the manuscript from markdown or any other source.**
+**COPY the canonical `.docx` into `output/drafts/`, EDIT the clone there, PUSH only the clone back. NEVER overwrite `manuscript/main_manuscript.docx` directly.**
 
-The team's working manuscript is a Word document. Both the user (in Microsoft Word) and agents edit the **same physical file** (`cleanroom-drive:CBZpaper/manuscript/main_manuscript.docx`). The user accumulates manual edits, citations, and review acceptances inside that file — overwriting it with a freshly-built version from markdown destroys all of that.
+The user owns the canonical files. The user has the `.docx` open in Word, accumulates edits, accepts/rejects tracked changes, inserts citations, etc. If you write to `manuscript/main_manuscript.docx`:
+- you may collide with their open Word session (file locking, lost edits)
+- you take on responsibility for not destroying their accumulated work
+- merging becomes your problem, not theirs
 
-## Source of truth
+Instead, you work in `output/drafts/`. Each agent run produces a versioned clone there. The user reviews the clone in Word at their own pace, then manually integrates whatever they like back into the canonical file (Word's *Compare* / *Combine* feature handles that).
 
-`cleanroom-drive:CBZpaper/manuscript/main_manuscript.docx` — the canonical file.
+## Source of truth, by zone
 
-- ✅ Pull → edit → push: the file's identity is preserved across edits, the user sees changes as tracked-change diffs in their Word view.
-- ❌ Build a new docx from `main_manuscript.md` and upload: silently nukes the user's prior work and any citations.
-- ❌ Save your edited copy under a new name (`main_manuscript_v2.docx`, `..._fixed.docx`, …): forks the timeline; the user has to manually merge.
+| Drive path | Who writes | Who reads |
+|---|---|---|
+| `manuscript/main_manuscript.docx` (and other canonical files) | **user only** | user + agents (read-only) |
+| `output/drafts/<versioned-clone>.docx` | **agent (this skill)** | user + agents |
+| `library.bib` | **user only** (agents propose via comment in their draft) | user + agents |
 
-Markdown files (`*.md`) are agent scratch — drafts, notes, comparisons. They are not the manuscript. Do not treat them as the source of truth. Do not "build" the docx from them.
+Rule of thumb: `output/` is the agent workspace. Anything outside is read-only.
+
+## What to do, what NOT to do
+
+- ✅ Pull `manuscript/main_manuscript.docx` → save with a versioned name into `output/drafts/` → edit the clone → push the clone back to `output/drafts/`.
+- ❌ Push your edited clone back to `manuscript/main_manuscript.docx` (overwrites canonical).
+- ❌ Build a new docx from `main_manuscript.md` and put it anywhere (loses the user's prior work and citations entirely — markdown is not a source of truth).
+- ❌ Save under an ambiguous name like `main_manuscript_v2.docx` at the root of `manuscript/` — forks the canonical timeline; users won't know which to trust.
+
+Markdown files (`*.md`) are agent scratch — drafts, notes, comparisons. They are not the manuscript. Do not treat them as the source of truth.
 
 ## Required prerequisites
 
@@ -31,21 +45,39 @@ This skill depends on:
 
 ## Workflow
 
-### 1. Pull the latest manuscript
+### 1. Build the clone path
+
+Compose a versioned filename so the user can tell at a glance who edited what, when:
+
+```
+output/drafts/main_manuscript__<AgentName>__<YYYY-MM-DD>__<short-topic>.docx
+```
+
+Example: `output/drafts/main_manuscript__ManuscriptWriter__2026-05-02__abstract-polish.docx`.
+
+Use double-underscore (`__`) between fields so the filename remains parseable.
+
+### 2. Pull canonical → stage clone
 
 ```bash
-mkdir -p /tmp/manuscript
-rclone copy cleanroom-drive:CBZpaper/manuscript/main_manuscript.docx /tmp/manuscript/
+mkdir -p /tmp/cbz/clone
+CLONE_NAME="main_manuscript__ManuscriptWriter__$(date -I)__abstract-polish.docx"
+
+# Pull the canonical (read-only) copy to local
+rclone copy cleanroom-drive:CBZpaper/manuscript/main_manuscript.docx /tmp/cbz/clone/
+
+# Rename the local copy to the clone name (you'll edit this one and push it back)
+mv "/tmp/cbz/clone/main_manuscript.docx" "/tmp/cbz/clone/$CLONE_NAME"
 ```
 
-Always pull fresh. The user may have made edits in Word since your last run.
+Always pull fresh. The user may have edited the canonical in Word since your last run.
 
-### 2. Open and orient
+### 3. Open the clone and orient
 
-Use docx-mcp tools to understand the document:
+Use docx-mcp tools on the clone (NOT on any cached canonical):
 
 ```
-open_document("/tmp/manuscript/main_manuscript.docx")
+open_document("/tmp/cbz/clone/<CLONE_NAME>")
 get_document_info()      # paragraph count, headings, document structure
 get_headings()           # section outline
 search_text("phrase")    # find target paragraphs
@@ -54,7 +86,7 @@ get_paragraph(para_id)   # read exact text before editing
 
 Read before you write. Don't blindly insert at a paragraph index — verify the surrounding context.
 
-### 3. Edit with tracked changes
+### 4. Edit with tracked changes
 
 Tracked changes are **on by default** when using docx-mcp's edit tools. Every deletion shows as red strikethrough, every insertion as green underline, in the user's Word view.
 
@@ -64,7 +96,7 @@ insert_text(para_id, "new wording")
 add_comment(para_id, "Reason for the change — be brief.")
 ```
 
-Each edit you make accumulates as a separate revision. The user accepts/rejects each one in Word.
+Each edit you make accumulates as a separate revision in the clone. The user reviews them in Word against your clone, then *Compare*s the clone to the canonical to decide what to integrate.
 
 **Author attribution:** docx-mcp records you as the author on every revision. Use your agent name (e.g., `ManuscriptWriter`) so the user can filter by author in Word's review pane.
 
@@ -202,47 +234,65 @@ Always run `audit_document()` before save. It catches:
 
 Fix any reported issues before saving.
 
-### 6. Save and push
+### 6. Save and push the clone (NOT the canonical)
+
+Save the clone under the same versioned name you created in step 1:
 
 ```
-save_document("/tmp/manuscript/main_manuscript.docx")
+save_document("/tmp/cbz/clone/<CLONE_NAME>")
 ```
 
-Then upload back to drive:
+Then upload to **`output/drafts/`** on Drive — never to `manuscript/`:
 
 ```bash
-rclone copy /tmp/manuscript/main_manuscript.docx cleanroom-drive:CBZpaper/manuscript/
+rclone copy "/tmp/cbz/clone/$CLONE_NAME" cleanroom-drive:CBZpaper/output/drafts/
 ```
 
-## What goes in a markdown scratch file vs the DOCX
+### 7. Tell the user what you produced
 
-| Belongs in `.md` (scratch) | Belongs in `.docx` (manuscript) |
+In your reply to the issue, include:
+- Path to the clone on Drive: `output/drafts/<CLONE_NAME>`
+- One-line summary of the changes you made
+- How many tracked-change revisions are in the clone
+- Any uncertainty / questions for the user (e.g. "decide whether to merge")
+
+The user opens the clone in Word, reviews the tracked changes, then decides whether to integrate them into the canonical `main_manuscript.docx` themselves (typically via Word's *Compare* or by manually accepting/rejecting in a copy of the canonical).
+
+## What goes in a markdown scratch file vs the DOCX clone
+
+| Belongs in `.md` scratch (under `/tmp/`) | Belongs in `output/drafts/<CLONE_NAME>.docx` |
 |---------------------------|-----------------------------------|
-| Your private analysis notes | Final prose for the paper |
-| Draft alternatives, A/B versions | The chosen wording |
-| Outlines, structure exploration | Section/heading edits |
+| Private deliberation, A/B explorations | The proposed final prose |
+| Outlines, structure exploration | Section/heading edits as tracked changes |
 | Code-driven figure plans | (figures stay separate) |
 | Review summaries to other agents | Comments via `add_comment()` |
 
-If you draft something in markdown first, that's fine — just make sure the final landing place for prose changes is the DOCX, not a new MD file.
+Markdown scratch is local-only; only the docx clone lands on Drive.
 
 ## What NOT to do
 
-- ❌ Do not regenerate `main_manuscript.docx` from `main_manuscript.md` or any markdown file. The DOCX has the user's edits and citations — overwriting destroys them.
-- ❌ Do not call `paper-docx-builder` for the main manuscript. That skill is for new documents (drafts in `output/drafts/`, SI standalone docs, presentations). For the main manuscript, edit in place.
-- ❌ Do not insert plain-text "(Author, Year)" citations. Use Word native citation fields with cite-keys so the bibliography stays accurate.
+- ❌ Do not push your clone back to `cleanroom-drive:CBZpaper/manuscript/` — that overwrites the user's canonical.
+- ❌ Do not pull from `manuscript/` and immediately edit it locally without first renaming to a clone — easy to forget which is which.
+- ❌ Do not regenerate the docx from `main_manuscript.md` or any markdown file — markdown is not a source of truth.
+- ❌ Do not call `paper-docx-builder` for cloning the main manuscript (that builds NEW docs; here we want a faithful clone of the existing file).
+- ❌ Do not insert plain-text "(Author, Year)" citations. Use Word native citation fields with cite-keys.
 - ❌ Do not invent cite-keys that aren't in `library.bib`. Add a comment instead.
 - ❌ Do not turn off tracked changes. The user must see what you changed.
 - ❌ Do not edit the bibliography section directly. Word generates it from the cited sources.
 
 ## Coordination with the user
 
-The user works in Word with tracked changes ON. They see your edits in green/red, can accept or reject each, and add their own edits (which then come back to you on the next pull as the new baseline).
+The user opens **the canonical** `manuscript/main_manuscript.docx` in Word with tracked changes ON. You write to **a separate clone** in `output/drafts/`. So:
+
+- The user's open Word session never blocks you (you're touching a different file).
+- The user's manual edits in the canonical never collide with yours.
+- The user reviews your clone separately, then decides what to merge — they own the merge step.
 
 Keep your edits **scoped and explainable**:
-- One conceptual change = one block of related insertions/deletions + one comment explaining why
+- One conceptual change per clone = one focused topic in the clone's filename suffix
+- One block of related insertions/deletions + one `add_comment()` explaining why
 - Don't make sweeping changes the user has to wade through
-- If you're considering a big restructure, write the proposal in a scratch `.md` first and tag the user via Word comment for approval before applying
+- If you're considering a big restructure, write the proposal in a scratch `.md` and tag the user via Word comment in the clone for approval before applying
 
 ## When to use this skill
 
