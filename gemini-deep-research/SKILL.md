@@ -144,4 +144,47 @@ interaction = client.interactions.create(
 - Summarizing a single document (use NotebookLM instead)
 - Anything that doesn't require multi-source synthesis
 
+## After the report: ALWAYS hand off cited PDFs to the user → NotebookLM
+
+The Deep Research report is only the first half of the workflow. The second half is making the cited papers actually accessible to the team for follow-up questions. **You MUST do this step at the end of every Deep Research run** — otherwise the user has prose recommendations they cannot verify or build on.
+
+The report contains two kinds of cited material:
+
+1. **Vertex-Search redirect URLs** in the final `**Sources:**` section, e.g.
+   `1. [acs.org](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQ…)`.
+   These URLs redirect to the actual paper landing page when opened in a browser.
+2. **Inline `[cite: N]` markers** in the body, which point at the same numbered Sources list.
+
+### What you do at the end of every run
+
+1. **Parse the report's Sources section** to get the (number, redirect-URL) pairs.
+2. **Identify the named papers** in the body where they're discussed — typically you'll see them as italicized titles followed by year and `[cite: N]`. Match each named paper to its `[cite: N]` URL.
+3. **Save the report itself** to `cleanroom-drive:CBZpaper/output/drafts/deep_research_<topic>__<YYYY-MM-DD>.md` (this is the agent's deliverable).
+4. **In your reply to the issue, post a structured handoff table.** Required columns: `cite N`, `title (truncated)`, `journal/year`, `Vertex URL`. Mark each row with its role (e.g. "kritisch", "nice-to-have") so the user knows priority.
+5. **End with this exact ask** so the user knows what's next:
+
+   > **Bitte folgende PDFs runterladen und in NotebookLM ergänzen:** download from the URLs above, save as `<FirstAuthor>_<Year>.pdf`, push to `cleanroom-drive:CBZpaper/literature/`, then add to the `CBZ Paper` notebook in NotebookLM (notebook id is in `projects/{project}/status.json` → `notebooklm_notebook_id`).
+
+6. **Do NOT attempt to download the PDFs yourself.** Most journal sites are paywalled, the Vertex redirects expire, and your agent runtime has no library credentials. The user has institutional access and can download them on their Mac.
+7. After the user confirms the PDFs are in NotebookLM, follow-up questions about specific cited claims should be sent to NotebookLM via the `notebooklm` skill — that's where the PDFs live, not in Deep Research's transient context.
+
+### Filename convention for downloaded PDFs
+
+The team uses `<FirstAuthor>_<Year>.pdf` (Cleanroom Limited convention from
+`cleanroom-drive:CBZpaper/literature/`). Examples: `Hai_2018.pdf`, `Kaiser_2021.pdf`.
+For author/year collisions add `b`/`c` suffix: `Yang_2024b.pdf` if `Yang_2024.pdf`
+already exists in the library. Always tell the user the exact filename you expect
+so they can save with that name.
+
+### Why this matters
+
+Without the handoff:
+- The Deep Research report cites papers the user cannot read, only paraphrase.
+- NotebookLM can't be queried about the cited papers because they're not uploaded.
+- Agents in subsequent issues have no way to verify Deep Research's claims.
+
+With the handoff, the cited literature becomes a permanent team resource that
+every agent (via `notebooklm`) and every reviewer can re-use — turning a $2–5
+one-shot research run into reusable institutional knowledge.
+
 This skill can be improved by agents as they develop research workflows.
