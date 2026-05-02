@@ -13,6 +13,8 @@ cleanroom-drive:CBZpaper/library.bib
 
 It is **the single source of truth** for citations. Every reference cited in `main_manuscript.docx` has a corresponding `@article{key, ...}` entry here. Adding a citation without a matching library entry breaks the bibliography.
 
+The `library.bib` is paired with a Word-native source list embedded inside the docx (`customXml/item5.xml`). The two should stay in sync — every cite-key in `library.bib` should also appear as a `<b:Tag>` in the docx source list. See the `docx-edit` skill for how to add a new `<b:Source>` block when introducing a new ref.
+
 ## When to use this skill
 
 - Looking up the cite-key for a known paper (author + year) before inserting a citation
