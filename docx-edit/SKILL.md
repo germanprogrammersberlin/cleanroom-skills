@@ -5,13 +5,21 @@ description: Edit the team's Word manuscript (.docx) in place with tracked chang
 
 # Editing the Team's Word Manuscript
 
-The team's working manuscript is a Word document, not markdown. Both the user (in Microsoft Word) and agents edit the same `.docx` file. Edits are recorded as tracked changes so the user can review what each agent did before accepting.
+## ⚡ The one rule
+
+**COPY the existing `.docx` to local, EDIT it in place with tracked changes, PUSH the same file back. Do NOT regenerate the manuscript from markdown or any other source.**
+
+The team's working manuscript is a Word document. Both the user (in Microsoft Word) and agents edit the **same physical file** (`cleanroom-drive:CBZpaper/manuscript/main_manuscript.docx`). The user accumulates manual edits, citations, and review acceptances inside that file — overwriting it with a freshly-built version from markdown destroys all of that.
 
 ## Source of truth
 
-`cleanroom-drive:CBZpaper/manuscript/main_manuscript.docx` — this is the canonical file. Always pull the latest before editing; always push your edits back. Never regenerate the manuscript from scratch (that throws away the user's edits and any citations they've inserted in Word).
+`cleanroom-drive:CBZpaper/manuscript/main_manuscript.docx` — the canonical file.
 
-Markdown files (`*.md`) are agent scratch — drafts, notes, comparisons. They are not the manuscript. Do not write the manuscript as markdown and rebuild — edit the DOCX directly.
+- ✅ Pull → edit → push: the file's identity is preserved across edits, the user sees changes as tracked-change diffs in their Word view.
+- ❌ Build a new docx from `main_manuscript.md` and upload: silently nukes the user's prior work and any citations.
+- ❌ Save your edited copy under a new name (`main_manuscript_v2.docx`, `..._fixed.docx`, …): forks the timeline; the user has to manually merge.
+
+Markdown files (`*.md`) are agent scratch — drafts, notes, comparisons. They are not the manuscript. Do not treat them as the source of truth. Do not "build" the docx from them.
 
 ## Required prerequisites
 
