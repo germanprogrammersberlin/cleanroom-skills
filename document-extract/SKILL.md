@@ -1,224 +1,180 @@
 ---
 name: document-extract
-description: Extract structured data + searchable text from incoming PDFs (letters, court documents, invoices, mailings) using Claude's native document API. Original PDFs stay frozen as evidence; extract.md is a derivative for the agent. Use this whenever a PDF arrives in the inbox or in an Akte's eingehend/ folder. NEVER overwrite the original PDF or omit the SHA-256 of the source.
+description: Extract structured data + searchable text from incoming PDFs (letters, court documents, invoices, mailings). The agent uses its own Read tool — no external API call. Original PDFs stay frozen as evidence; extract.md is a derivative for downstream agents. Use whenever a PDF arrives in _eingang/ or in an Akte's eingehend/ folder. NEVER overwrite the original PDF or omit the SHA-256 of the source.
 ---
 
 # Document Extract
 
-Use Claude's document API to extract structured information and full text from PDF documents (German letters, official documents, invoices, court papers). No external OCR tools needed — Claude handles scanned PDFs and text PDFs equally.
+Du (der Agent) liest die PDF **selbst** mit deinem Read-Tool. Du bist
+Claude — du brauchst keine zusätzliche API. Lies, analysiere, schreibe
+ein `extract.md`. Original-PDF bleibt unangetastet.
 
 ## When to Use
 
-- A new PDF arrives in `05_KORRESPONDENZ/eingehend/` and needs classification
-- A PDF is moved into an Akte's `eingehend/` folder and needs an `extract.md` for the agent to reason about
-- Re-extraction of an existing PDF (e.g., new prompt, better classification schema) — original PDF stays frozen, only the `extract.md` changes
+- Eine neue PDF liegt in `butler-vault/_eingang/` und braucht Klassifikation
+- Eine PDF wandert in `03_AKTEN/<owner>/<akte>/eingehend/` und braucht
+  ein `extract.md`
+- Re-Extraktion einer bestehenden PDF (neues Schema) — Original bleibt
+  frozen, nur `extract.md` wird neu geschrieben
 
 ## When NOT to Use
 
-- For mass ingestion of thousands of unrelated PDFs (cost) — there use a cheaper local pipeline first and only call Claude on uncertain cases
-- For purely text-based PDFs where structure doesn't matter (use `pdftotext` if available)
-- For non-PDF formats (use the appropriate reader; .docx → docx-edit, images → image-editing)
+- Reine Text-PDFs ohne Struktur-Bedarf — `pdftotext` reicht
+- Nicht-PDF-Formate (`.docx` → docx-edit, Bilder → image-editing)
+- Beim Massen-Trash (Werbung) — Header-Klassifikation aus Mail-Subject
+  reicht; PDF gar nicht öffnen
 
 ## Hard rules
 
-1. **The original PDF is the truth.** Never modify, re-encode, or delete it. Compute SHA-256 once at first import and pin it.
-2. **Every extract.md cites its source.** YAML frontmatter MUST contain `source_pdf` (relative path) and `source_sha256`.
-3. **Never invent facts.** If the PDF is unreadable, partially scanned, or ambiguous, write `[UNKLAR]` in the extract instead of guessing. Log the issue in the agent's notes.
-4. **Per-PDF: one Claude call.** Don't loop "improve the extract" — burn cost. If the first extract is wrong, fix the prompt, not by repeated re-runs.
-5. **PDFs go through Claude (document API), never through local OCR.** This is a binding architecture rule, not just a recommendation.
-6. **Image attachments must be ≤ 2000 px in any dimension** before sending to Claude. Above that, the API downsamples (quality suffers) or rejects. Resize first with `sips -Z 1500` (macOS), `Pillow.thumbnail((1800, 1800))` (Python), or `convert -resize 1800x1800` (ImageMagick). PDF documents sent as `document` type are handled by the API directly and are exempt.
+1. **Original-PDF ist die Wahrheit.** Niemals modifizieren, neu kodieren
+   oder löschen. SHA-256 einmal beim Import berechnen und festhalten.
+2. **Jedes extract.md zitiert seine Quelle.** YAML-Frontmatter MUSS
+   `source_pdf` (relativer Pfad) und `source_sha256` enthalten.
+3. **Niemals halluzinieren.** Wenn das PDF unleserlich, teilweise
+   gescannt oder mehrdeutig ist: `[UNKLAR]` schreiben, nicht raten.
+   Issue an Sachbearbeiter mit Notiz.
+4. **Pro PDF: ein Lesedurchgang.** Nicht in einer Schleife "verbessern"
+   — wenn das erste Extract falsch ist, Prompt-Schema fixen, nicht
+   nochmal lesen.
+5. **Bilder ≤ 2000 px** wenn separat (nicht im PDF) — siehe
+   ~/.claude/CLAUDE.md.
+6. **Kein externer Anthropic-API-Call**, kein `from anthropic import …`,
+   kein API-Key. Du bist Claude, du liest mit Read direkt.
 
 ## Modellwahl
 
-| Modell | Wofür | Wann eskalieren? |
-|--------|-------|------------------|
-| **Haiku 4.5** | Routine, Newsletter, Bestellbestätigungen, Werbung, einfache Klassifikation | bei niedriger Confidence → Sonnet |
-| **Sonnet 4.6** (DEFAULT) | Standardbriefe: Mahnungen, Rechnungen, Verträge, Behörden | bei `dokumenttyp ∈ {gerichtsbescheid, vollstreckung}` → Opus |
-| **Opus 4.7** | Gerichtsbescheide, Vollstreckungsbescheide, juristisch komplexe Akten | — |
+Du bist Claude in einem Bot mit fester Modell-Zuordnung
+(`adapter_config.model`). Das Modell wird PRO BOT konfiguriert, nicht
+pro PDF. Routing-Hinweise:
 
-Posteingangs-Bot startet typischerweise mit Sonnet, schaltet auf Opus
-hoch wenn der erste Extract `kritisch: true` setzt. Werbung/Routine
-darf direkt mit Haiku klassifiziert werden.
+| Bot-Modell | Wofür typisch |
+|-----------|---------------|
+| Haiku 4.5 | Posteingangs-Bot (Massentriage, schnelle Klassifikation) |
+| Sonnet 4.6 | Sachbearbeiter (Briefe schreiben), Buchhalter |
+| Opus 4.7 | Jurist (juristische Argumentation), Intelligence (Strategie) |
 
-## Setup (every agent that does extraction)
+Wenn Posteingangs-Bot bei einem PDF unsicher wird (Klassifikation
+`unsicher: true`), erstellt er ein Issue an Sachbearbeiter — der hat
+Sonnet, kann tiefer gucken.
 
-```python
-import os, base64, hashlib, json
-from anthropic import Anthropic
+## Workflow (für jeden PDF in `_eingang/` oder `eingehend/`)
 
-client = Anthropic()  # picks up ANTHROPIC_API_KEY or PAPERCLIP_API_KEY
-MODEL = "claude-sonnet-4-6"  # or claude-haiku-4-5 for low-priority routine
-```
+1. **Lies die PDF mit deinem Read-Tool.** Beispiel:
+   `Read("/paperclip/data/butler/vault/_eingang/Sammelmappe50.pdf")`
+   — das Tool liefert dir die Seiten als Text + Bilder.
 
-## Standard extraction call
+2. **Berechne SHA-256:**
+   `sha256sum <pdf_path>` via Bash, oder Python-Snippet.
 
-```python
-def extract(pdf_path: str, classification_hint: str = "auto") -> dict:
-    pdf_bytes = open(pdf_path, "rb").read()
-    sha = hashlib.sha256(pdf_bytes).hexdigest()
-    pdf_b64 = base64.b64encode(pdf_bytes).decode()
+3. **Klassifiziere + extrahiere die Felder** (siehe Schema unten).
 
-    prompt = (
-        "Extrahiere aus diesem Dokument strukturiert die folgenden Felder "
-        "als JSON. Wenn ein Feld nicht im Dokument steht, schreibe null. "
-        "Erfinde nichts.\n\n"
-        "Felder:\n"
-        "- absender (Name + Anschrift)\n"
-        "- empfaenger\n"
-        "- datum (ISO YYYY-MM-DD)\n"
-        "- aktenzeichen (string oder null)\n"
-        "- dokumenttyp (mahnung | inkasso | gerichtsbescheid | rechnung | "
-        "  vollstreckung | brief_avis | werbung | routine | sonstiges)\n"
-        "- hauptforderung (Zahl in EUR oder null)\n"
-        "- nebenforderungen (Liste oder [])\n"
-        "- frist (ISO-Datum oder null)\n"
-        "- frist_typ (zahlung | widerspruch | einspruch | sonstiges | null)\n"
-        "- volltext (kompletter Text als Markdown — Briefkopf, Body, "
-        "  Unterschrift, alles)\n"
-        "- besonderheiten (Liste auffälliger Beobachtungen, z.B. "
-        "  'rote Markierung auf Seite 1', 'unleserliche Stelle Zeile 23')\n\n"
-        "Antworte AUSSCHLIESSLICH mit dem JSON-Objekt, kein Kommentar davor "
-        "oder danach."
-    )
+4. **Schreibe `extract.md`** neben das Original (gleiches Verzeichnis,
+   `<basename>_extract.md`).
 
-    msg = client.messages.create(
-        model=MODEL,
-        max_tokens=8000,
-        messages=[{
-            "role": "user",
-            "content": [
-                {"type": "document", "source": {
-                    "type": "base64",
-                    "media_type": "application/pdf",
-                    "data": pdf_b64,
-                }},
-                {"type": "text", "text": prompt},
-            ],
-        }],
-    )
-    raw = msg.content[0].text.strip()
-    # robust JSON parse — Claude sometimes wraps in ```json
-    if raw.startswith("```"):
-        raw = raw.split("```")[1].lstrip("json").strip()
-    data = json.loads(raw)
-    data["_source_pdf"] = os.path.basename(pdf_path)
-    data["_source_sha256"] = sha
-    data["_model"] = MODEL
-    return data
-```
+5. **Route die PDF** entsprechend `dokumenttyp` (siehe Routing-Tabelle).
 
-## Output: extract.md format
+6. **Update `_PROVENANCE.md`** der Akte (neuer Eintrag mit Datum + SHA).
 
-For a file `eingehend/20241012_riverty_mahnstufe1.pdf` write
-`eingehend/20241012_riverty_mahnstufe1_extract.md`:
+7. **Bei `kritisch: true`**: Issue mit Label `kritisch` an Jurist,
+   Mail an David + Ronny, Eintrag in `04_KALENDER/deadlines/`.
 
-```markdown
+## Extract-Schema
+
+Du schreibst `extract.md` mit diesem YAML-Frontmatter (Pflichtfelder):
+
+```yaml
 ---
-source_pdf: 20241012_riverty_mahnstufe1.pdf
-source_sha256: abc123…
-extracted_at: 2026-05-09T17:42:00Z
-extracted_by: claude-sonnet-4-6 via document-extract skill v1
-absender: "Riverty GmbH, Postfach 123, 80339 München"
-datum: 2024-10-12
-aktenzeichen: "RV-2024-04567"
-dokumenttyp: mahnung
-hauptforderung: 1234.56
-frist: 2024-10-26
-frist_typ: zahlung
+source_pdf: <basename des Originals>
+source_sha256: <SHA256-Hex>
+extracted_at: <ISO-Timestamp UTC>
+extracted_by: <dein Bot-Name>, model <dein Modell>
+absender: "<Name + Anschrift, einzeilig oder als Block>"
+empfaenger: "<wer ist Empfänger laut PDF>"
+datum: <ISO YYYY-MM-DD oder null>
+aktenzeichen: "<string oder null>"
+dokumenttyp: <mahnung | inkasso | gerichtsbescheid | rechnung | vollstreckung | brief_avis | werbung | routine | sonstiges>
+hauptforderung: <Zahl in EUR oder null>
+nebenforderungen: [<Zahlen oder leer>]
+frist: <ISO YYYY-MM-DD oder null>
+frist_typ: <zahlung | widerspruch | einspruch | sonstiges | null>
+kritisch: <true wenn dokumenttyp ∈ {gerichtsbescheid, vollstreckung}>
+unsicher: <true wenn Klassifikation unklar — dann Issue an Sachbearbeiter>
 ---
 
-# Mahnung Riverty — 12.10.2024
+# <kurzer Titel: Dokumenttyp + Absender + Datum>
 
 ## Volltext
 
-[der gesamte Brieftext, formatiert als Markdown]
+[Kompletter Brieftext als Markdown — Briefkopf, Body, Unterschrift.
+ Tabellen als Markdown-Tabellen. Erfundenes ist VERBOTEN. Bei
+ unleserlichen Stellen: `[UNKLAR: Beschreibung was zu sehen ist]`.]
 
 ## Besonderheiten
 
-- Zahlart: SEPA-Lastschrift mit IBAN DE…
-- Druckdatum scheint manuell überstempelt
+- <z.B. "rote Markierung auf Seite 1">
+- <z.B. "unleserliche Stelle Zeile 23">
+- <leer wenn nichts auffällig>
 ```
 
 ## Klassifikation → Vault-Pfad
-
-After extraction, the bot routes the PDF based on `dokumenttyp`:
 
 | dokumenttyp | Pfad | frozen? |
 |-------------|------|---------|
 | werbung | `99_ARCHIV/spam/YYYY/MM/` | nein, 30 Tage TTL |
 | routine | `99_ARCHIV/routine/YYYY/MM/` | ja |
-| brief_avis | `05_KORRESPONDENZ/eingehend/YYYY/MM/` (mit Hinweis: physischer Brief folgt) | ja |
+| brief_avis | `05_KORRESPONDENZ/eingehend/YYYY/MM/` (Hinweis: physischer Brief folgt) | ja |
 | mahnung / inkasso / rechnung | `03_AKTEN/<owner>/<akte-id>/eingehend/` | ja |
-| gerichtsbescheid / vollstreckung | wie oben + Marker `kritisch: true` + Eintrag in `04_KALENDER/deadlines/` | ja |
-| sonstiges | `05_KORRESPONDENZ/eingehend/YYYY/MM/` mit Issue an Sachbearbeiter zur Sichtung | ja |
+| gerichtsbescheid / vollstreckung | wie oben + `kritisch: true` + Eintrag in `04_KALENDER/deadlines/` | ja |
+| sonstiges | `05_KORRESPONDENZ/eingehend/YYYY/MM/` mit Issue an Sachbearbeiter | ja |
 
 ## Failure modes
 
-- **Verschlüsseltes PDF**: Claude meldet das. → Schreibe Issue an Principal mit Bitte um Pass.
-- **Leeres / korruptes PDF**: extract liefert null/leeren Volltext. → `extract.md` mit `[KORRUPT]`-Marker, Issue an Principal.
-- **Mehrere Briefe in einem PDF (Sammelmappe)**: Claude erkennt das im Volltext. → Vor dem Speichern: Trennung per Heuristik (Seitenwechsel + neuer Briefkopf), pro Brief eigener Akten-Eintrag.
-- **Sehr große PDFs (>50 MB / 100 Seiten)**: Claude API hat Limits. → Vorher mit `pdfinfo` checken, ggf. nur erste 30 Seiten extrahieren + Hinweis.
-
-## Cost awareness
-
-- Sonnet: ~3000–8000 Input-Tokens pro PDF (je nach Seitenzahl), ~500–2000 Output
-- Haiku: ~10× billiger, aber schwächere Extraktion bei handschriftlichem Text
-- **Faustregel:** Routine-Mails (Bestellbestätigungen, Newsletter) → Haiku. Forderungen/Behörden/Gericht → Sonnet. Kritisches → Opus.
+- **Verschlüsseltes PDF**: Read-Tool meldet das. → Issue an Principal
+  (David / Ronny) mit Bitte um Pass. `extract.md` mit `[VERSCHLÜSSELT]`.
+- **Korruptes PDF**: Read-Tool wirft Fehler. → `extract.md` mit
+  `[KORRUPT]`-Marker, Issue an Sachbearbeiter zur Sichtung.
+- **Sammelmappe (mehrere Briefe in einem PDF)**: siehe nächster Abschnitt.
+- **Sehr große PDFs (>50 MB / 100 Seiten)**: Read-Tool hat Limits.
+  Vorab `pdfinfo <pdf>` (Bash) checken; bei >100 Seiten: erste 30
+  Seiten extrahieren + Hinweis "Volltext gekürzt — siehe Original",
+  Issue an Sachbearbeiter zur Vollsichtung.
 
 ## Sammelmappen — mehrere Briefe in einem PDF
 
-In der Praxis kommen oft "Sammelmappen" rein — eingescannte
-Stapel mit mehreren unabhängigen Briefen in einem PDF, in beliebiger
-Reihenfolge. Der Skill MUSS diese auseinandersortieren.
+In der Praxis kommen oft "Sammelmappen" rein — eingescannte Stapel mit
+mehreren unabhängigen Briefen in einem PDF, in beliebiger Reihenfolge.
 
-### Splitting via Claude
+### Erkennen
 
-```python
-def split_sammelmappe(pdf_path: str) -> list[dict]:
-    """Erkennt Brief-Grenzen in einer Sammelmappe und liefert Index zurück."""
-    pdf_b64 = base64.b64encode(open(pdf_path, "rb").read()).decode()
+Du liest das PDF einmal komplett. Wenn du mehrere Briefkopfe / mehrere
+Absender / mehrere Datums findest, ist es eine Sammelmappe.
 
-    prompt = (
-        "Dieses PDF enthält mehrere unabhängige Briefe. Identifiziere die "
-        "Brief-Grenzen anhand von neuem Briefkopf, Absender-Wechsel, "
-        "Datum-Wechsel oder neuem Aktenzeichen.\n\n"
-        "Liefere ein JSON-Array zurück, ein Element pro Brief:\n"
-        "  {start_page: int (1-indexiert), end_page: int, "
-        "   absender_kurz: str, datum: ISO-Datum, dokumenttyp: str}\n"
-        "Kein Kommentar drumherum, nur das Array."
-    )
+### Zerlegen
 
-    msg = client.messages.create(
-        model="claude-sonnet-4-6",  # Sonnet ist robust für Splitting
-        max_tokens=4000,
-        messages=[{
-            "role": "user",
-            "content": [
-                {"type": "document", "source": {
-                    "type": "base64",
-                    "media_type": "application/pdf",
-                    "data": pdf_b64,
-                }},
-                {"type": "text", "text": prompt},
-            ],
-        }],
-    )
-    return json.loads(strip_codeblock(msg.content[0].text))
+```bash
+# Seitenbereich extrahieren mit pdftk (im Container vorhanden):
+pdftk Sammelmappe50.pdf cat 1-3 output brief_01_seiten_1-3.pdf
+pdftk Sammelmappe50.pdf cat 4-7 output brief_02_seiten_4-7.pdf
+# usw.
 ```
 
-Danach pro Brief: PDF mit `pypdf` o.ä. zerlegen, jedes Teil-PDF separat
-durch `extract()` schicken, an den richtigen Akten-Pfad routen.
+Danach für jedes Teil-PDF einzelne `extract.md` schreiben + an den
+richtigen Akten-Pfad kopieren.
+
+**Original-Sammelmappe NICHT löschen** — sie bleibt in
+`_eingang/_processed/<datum>/` als Provenance.
 
 ## _eingang/ — Drop-Off-Poll
 
-Der Posteingangs-Bot pollt `butler-vault/_eingang/` alle 5 Minuten:
+Der Posteingangs-Bot pollt `butler-vault/_eingang/` jeden Heartbeat:
 
 ```python
-new_files = list_new_pdfs("butler-vault/_eingang/")
-for pdf in new_files:
-    if is_sammelmappe(pdf):
-        for brief in split_sammelmappe(pdf):
-            process_brief(pdf, page_range=(brief["start_page"], brief["end_page"]))
+# Pseudo-Code für deine Bash/Read-Logik:
+for pdf in list_new_pdfs("butler-vault/_eingang/"):
+    if is_sammelmappe(pdf):  # → Indikatoren: mehrere Briefkopfe beim ersten Lesen
+        teile = split_sammelmappe(pdf)  # pdftk
+        for teil in teile:
+            process_brief(teil)
     else:
         process_brief(pdf)
 
@@ -242,7 +198,7 @@ Bei Klassifikation `gerichtsbescheid` oder `vollstreckung`:
 
 1. Original in Akte (`03_AKTEN/<owner>/<akte>/eingehend/`) — frozen, mit SHA
 2. Kopie bleibt in `_eingang/_processed/_kritisch/` — niemals löschen
-3. **Sofort** Mail an David UND Ronny mit:
+3. **Sofort** Mail-Draft an David UND Ronny mit:
    - Quelle (Gericht / Aktenzeichen)
    - Frist (mit Datum)
    - Akten-Link
@@ -254,9 +210,19 @@ Bei Klassifikation `gerichtsbescheid` oder `vollstreckung`:
 
 Nach Extraktion und Klassifikation:
 
-1. PDF kopieren (nicht verschieben!) zum richtigen Akten-Pfad
-2. extract.md daneben schreiben
+1. PDF kopieren (NICHT verschieben!) zum richtigen Akten-Pfad
+2. `extract.md` daneben schreiben
 3. `_PROVENANCE.md` der Akte aktualisieren (neuer Eintrag mit Datum + SHA)
-4. Wenn neue Akte nötig: Sachbearbeiter erstellt `_AKTE.md` mit Stammdaten aus extract
-5. Wenn Frist im extract: Eintrag in `04_KALENDER/deadlines/` mit Akten-Verweis
-6. Bei Gerichtsdokument: zusätzlich Schritt 3-5 aus „Aufbewahrungsregeln"
+4. Wenn neue Akte nötig: Sachbearbeiter erstellt `_AKTE.md` mit
+   Stammdaten aus dem Extract
+5. Wenn Frist im Extract: Eintrag in `04_KALENDER/deadlines/` mit
+   Akten-Verweis
+6. Bei Gerichtsdokument: zusätzlich Schritt 3–5 aus „Aufbewahrungsregeln"
+
+## Migration aus alter Skill-Version
+
+Frühere Version dieses Skills nutzte `from anthropic import Anthropic`
+und brauchte einen `ANTHROPIC_API_KEY`. **Das ist überholt.** Bots in
+Paperclip laufen als `claude_local`-Adapter — der Bot IST Claude und
+liest PDFs direkt mit seinem eigenen Read-Tool. Kein API-Key, kein
+SDK-Import, keine zusätzlichen Kosten neben dem Heartbeat selbst.
