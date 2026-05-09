@@ -16,13 +16,36 @@ Access the "Cleanroom Limited" Shared Drive. **The user lives in Google Drive on
 
 ## Setup
 
-rclone is pre-configured with a service account. Config location:
+rclone is pre-configured with a Google service account (no token expiry, no interactive auth). The remote is called `cleanroom-drive` and points to the "Cleanroom Limited" Shared Drive root.
+
+### Inside the agent container
+
+The default rclone config is bind-mounted read-only-ish at:
 
 ```
-/root/.config/rclone/rclone.conf
+/paperclip/.config/rclone/rclone.conf      # the default $HOME/.config location, picked up automatically
 ```
 
-The remote is called `cleanroom-drive` and points to the Shared Drive.
+Plain `rclone <subcommand>` works for **all read operations** (`lsf`, `lsd`, `ls`, `cat`, `copy <remote>:src local/`). No `--config` flag needed.
+
+**Caveat — write-config workaround.** Because the file is a single-file bind mount, rclone occasionally tries to atomically rewrite it (refresh state) and fails with `Failed to save config after 10 tries: ... rename ... device or resource busy`. This does not affect the operation that triggered it (data transfer succeeds), but the warning is noisy. To suppress it cleanly, copy the config once at the top of your work and point at the writable copy:
+
+```bash
+RCLONE_CFG=/tmp/rclone.conf
+[ -f "$RCLONE_CFG" ] || cp /paperclip/.config/rclone/rclone.conf "$RCLONE_CFG"
+export RCLONE_CONFIG="$RCLONE_CFG"
+# now: rclone <whatever> works without warnings
+```
+
+### From the host (operator perspective)
+
+The full Drive root is also mounted as a FUSE filesystem at:
+
+```
+/srv/paperclip/data/cleanroom-limited/vault    # on the host
+```
+
+This is for SSH/host-side inspection only — agents inside the container do not currently see this path (a future propagation update will expose it as `/srv/data/cleanroom-limited/vault`). Until then, agents must use `rclone` for all Drive interaction.
 
 ## Commands
 
