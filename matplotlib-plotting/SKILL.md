@@ -15,13 +15,25 @@ Create publication-quality 2D figures for scientific papers.
 - Multi-panel figures
 - Any standard 2D scientific visualization
 
-## Publication Style Setup
+## Two-Stage DPI Workflow (review vs. submission)
+
+**Never default to 300 dpi for working files.** Multi-panel composites at 300 dpi exceed 5 MB and break the 5 MB-per-image / 32 MB-per-request limits of agent vision pipelines. Use a two-stage workflow:
+
+| Stage | DPI | Target size | Where |
+|---|---|---|---|
+| **Review / agent-readable** | 150 dpi | ≤ 2 MB per PNG | All intermediate iterations, all figures embedded in tool-results / comments |
+| **Final submission** | 300 dpi | unconstrained | ONLY the final upload to journal/Drive after sign-off |
+
+Always emit the review PNG first; only re-render at 300 dpi when the figure is approved and going to submission.
 
 ```python
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
-# Journal-quality defaults
+# Default = REVIEW DPI. Override to 300 only for final submission.
+REVIEW_DPI = 150
+SUBMISSION_DPI = 300
+
 mpl.rcParams.update({
     'font.family': 'serif',
     'font.size': 10,
@@ -30,8 +42,8 @@ mpl.rcParams.update({
     'xtick.labelsize': 9,
     'ytick.labelsize': 9,
     'legend.fontsize': 9,
-    'figure.dpi': 300,
-    'savefig.dpi': 300,
+    'figure.dpi': REVIEW_DPI,
+    'savefig.dpi': REVIEW_DPI,
     'savefig.bbox': 'tight',
     'axes.linewidth': 0.8,
     'lines.linewidth': 1.2,
@@ -43,6 +55,17 @@ SINGLE_COLUMN = (3.5, 2.8)    # ~89mm wide
 DOUBLE_COLUMN = (7.0, 4.5)    # ~178mm wide
 FULL_PAGE = (7.0, 9.0)        # full page
 ```
+
+### Always size-check after savefig
+
+```python
+import os
+fig.savefig(path, dpi=REVIEW_DPI)
+size_mb = os.path.getsize(path) / 1e6
+assert size_mb <= 4.0, f"PNG too large for agent pipeline: {size_mb:.1f} MB at {path}"
+```
+
+If the assert trips, lower DPI further (120/100), reduce the panel count per figure, or split into multiple figures. **Never** ship a > 4 MB PNG into a tool-result.
 
 ## Common Plot Types
 
