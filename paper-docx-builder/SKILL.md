@@ -38,6 +38,12 @@ def embed_md_image(doc, alt_text, png_path, width_in=6.0):
 
 **Do not** parse the legacy `*File:* \`Figure_S1.png\`` pointer convention — convert any encountered legacy markdown to standard `![](path)` first, then build. See the `supplementary-info` skill for the migration rule.
 
+### Build from the canonical markdown, never from the preview
+
+The DOCX builder reads `main_manuscript.md` / `supporting_information.md` (the ones with relative `![caption](../figures/SI/Figure_S<N>.png)` paths). It does **not** read `*_preview.md` — those are base64-embedded artefacts for human review only. Embedded base64 inflates conversation context and breaks the figure-vs-text separation the docx builder needs.
+
+After every successful DOCX build, also regenerate the matching `*_preview.md` (see the `supplementary-info` skill for the embed pattern) so the human reviewer's preview file stays in lockstep with the canonical markdown and the freshly built DOCX.
+
 ## Installation
 
 ```bash
