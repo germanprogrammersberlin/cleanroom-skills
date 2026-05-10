@@ -7,6 +7,37 @@ description: Build journal-quality DOCX manuscripts using python-docx. Proper he
 
 Build journal-quality DOCX manuscripts programmatically using python-docx. Produces clean formatting that journals expect — black italic headings (not Word's default blue headings with horizontal rules), proper typography, and correct academic formatting.
 
+## Markdown is the source of truth — DOCX is rendered from it
+
+The author and reviewers read `main_manuscript.md` / `supporting_information.md` directly in Markdown preview. The DOCX is **always** built from the current Markdown — never edit the DOCX as the canonical source.
+
+Figure references in the Markdown use **standard Markdown image syntax** (so the preview renders the actual figure, not a file-path string):
+
+```markdown
+![Figure 1. Schematic of the SG-GFET architecture. (a) Synthesis, (b) DSA, (c) Detection.](figures/Figure_1.png)
+```
+
+When you build the DOCX, embed the referenced PNG with the alt text as the caption:
+
+```python
+from docx.shared import Inches
+import re
+import os
+
+MD_IMG_RE = re.compile(r'!\[([^\]]*)\]\(([^)]+)\)')
+
+def embed_md_image(doc, alt_text, png_path, width_in=6.0):
+    """Embed a PNG referenced from Markdown with its alt text as caption."""
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.add_run().add_picture(png_path, width=Inches(width_in))
+    cap = doc.add_paragraph()
+    cap.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    R(cap, alt_text)
+```
+
+**Do not** parse the legacy `*File:* \`Figure_S1.png\`` pointer convention — convert any encountered legacy markdown to standard `![](path)` first, then build. See the `supplementary-info` skill for the migration rule.
+
 ## Installation
 
 ```bash
